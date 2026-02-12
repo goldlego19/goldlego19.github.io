@@ -15,14 +15,9 @@ import { collection, onSnapshot, query } from "firebase/firestore";
 import { onAuthStateChanged, type User } from "firebase/auth";
 import { type AccentColor } from "./timetable";
 
-// --- THEME CONFIGURATION ---
 const themeConfig: Record<
   AccentColor,
-  {
-    text: string;
-    iconBg: string;
-    iconText: string;
-  }
+  { text: string; iconBg: string; iconText: string }
 > = {
   blue: {
     text: "text-blue-200",
@@ -82,11 +77,7 @@ const StatusWidget = ({
   useEffect(() => {
     const q = query(collection(db, "devices"));
     const unsub = onSnapshot(q, (snapshot) => {
-      const deviceList = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-      setDevices(deviceList);
+      setDevices(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
     });
     return () => unsub();
   }, []);
@@ -95,7 +86,6 @@ const StatusWidget = ({
     setWakingId(deviceId);
     const endpoint = deviceId === "home-pc" ? "wakeMain" : "wakeServer";
     try {
-      // Replace with your actual external IP or domain
       await fetch(`http://213.217.201.0:5000/${endpoint}?key=denzel11`);
     } catch (e) {
       console.error("WoL failed", e);
@@ -108,9 +98,8 @@ const StatusWidget = ({
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="w-full max-w-sm bg-black/30 backdrop-blur-xl border border-white/10 rounded-2xl p-6 shadow-2xl"
+      className="w-full h-full min-h-[150px] bg-black/30 backdrop-blur-xl border border-white/10 rounded-2xl p-6 shadow-2xl"
     >
-      {/* Header */}
       <div className="flex items-center justify-between mb-6 border-b border-white/10 pb-4">
         <div className={`flex items-center gap-2 ${theme.text}`}>
           <Activity size={20} />
@@ -124,14 +113,10 @@ const StatusWidget = ({
       <div className="space-y-3">
         <AnimatePresence>
           {devices.map((device) => {
-            // 1. Check strict status from DB
             const isOnline = device.status === "active";
-
-            // 2. Safety Check: If data is stale (> 2 mins), mark offline
             const lastSeenDate = device.lastSeen?.toDate
               ? device.lastSeen.toDate()
               : new Date(device.lastSeen);
-
             const diffSeconds =
               (new Date().getTime() - lastSeenDate.getTime()) / 1000;
             const isTrulyOnline = isOnline && diffSeconds < 120;
@@ -142,18 +127,19 @@ const StatusWidget = ({
                 layout
                 className="group flex flex-col p-3 rounded-xl bg-white/5 border border-white/5 hover:border-white/10 transition-all"
               >
-                <div className="flex items-center justify-between gap-5">
-                  <div className="flex items-center gap-3">
+                <div className="flex items-center justify-between gap-4">
+                  {/* LEFT: Icon & Text */}
+                  <div className="flex items-center gap-3 min-w-0">
                     <div
-                      className={`p-2 rounded-lg ${theme.iconBg} ${theme.iconText}`}
+                      className={`h-9 w-9 flex-shrink-0 rounded-lg flex items-center justify-center ${theme.iconBg} ${theme.iconText}`}
                     >
                       {getDeviceIcon(device.id)}
                     </div>
-                    <div>
-                      <h3 className="text-sm font-medium text-gray-100 capitalize">
+                    <div className="min-w-0 flex-1">
+                      <h3 className="text-sm font-medium text-gray-100 capitalize truncate">
                         {device.id.replace("-", " ")}
                       </h3>
-                      <p className="text-[10px] text-gray-500 font-mono">
+                      <p className="text-[10px] text-gray-500 font-mono truncate">
                         {isTrulyOnline ? "Last Seen:" : "Offline Since:"}{" "}
                         {lastSeenDate.toLocaleTimeString([], {
                           hour: "2-digit",
@@ -163,9 +149,27 @@ const StatusWidget = ({
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-3">
+                  {/* RIGHT: Controls */}
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    {/* Boot Button - Fixed Size 32px */}
+                    {user && !isTrulyOnline && (
+                      <button
+                        onClick={() => handleWake(device.id)}
+                        disabled={wakingId === device.id}
+                        className="h-8 w-8 flex items-center justify-center bg-white/10 hover:bg-white text-white hover:text-black rounded-lg transition-all disabled:opacity-50"
+                        title="Boot Device"
+                      >
+                        {wakingId === device.id ? (
+                          <Loader2 className="animate-spin" size={14} />
+                        ) : (
+                          <Power size={14} />
+                        )}
+                      </button>
+                    )}
+
+                    {/* Status Badge */}
                     <div
-                      className={`flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[9px] font-bold uppercase border ${
+                      className={`flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[9px] font-bold uppercase border whitespace-nowrap ${
                         isTrulyOnline
                           ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
                           : "bg-red-500/10 border-red-500/20 text-red-400"
@@ -176,22 +180,6 @@ const StatusWidget = ({
                       />
                       {isTrulyOnline ? "Online" : "Offline"}
                     </div>
-
-                    {/* Boot Button (Only if User is Logged In & Device is Offline) */}
-                    {user && !isTrulyOnline && (
-                      <button
-                        onClick={() => handleWake(device.id)}
-                        disabled={wakingId === device.id}
-                        className="p-2 bg-white/10 hover:bg-white text-white hover:text-black rounded-lg transition-all disabled:opacity-50"
-                        title="Boot Device"
-                      >
-                        {wakingId === device.id ? (
-                          <Loader2 className="animate-spin" size={14} />
-                        ) : (
-                          <Power size={14} />
-                        )}
-                      </button>
-                    )}
                   </div>
                 </div>
               </motion.div>
