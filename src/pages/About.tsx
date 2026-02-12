@@ -20,19 +20,16 @@ const About = () => {
         </Link>
         
         <h2 className="text-3xl font-bold mb-4">Settings</h2>
-        <div className="space-y-4">
-          <div className="p-4 bg-gray-700/50 rounded-lg">
-            <h3 className="font-semibold text-blue-300">Background Source</h3>
-            <p className="text-sm text-gray-400">Currently set to Unsplash Daily (Static)</p>
-          </div>
-          
-          <div className="p-4 bg-gray-700/50 rounded-lg">
-            <h3 className="font-semibold text-blue-300">About this App</h3>
-            <p className="text-sm text-gray-400 mt-1">
-              This is a custom dashboard built with React + Vite.
-              Deploying to GitHub Pages as a user site.
-            </p>
-          </div>
+        <div className="space-y-4 text-gray-400">
+           <p>This is your personal dashboard.</p>
+           <div className="p-4 bg-gray-700/50 rounded-lg">
+             <h3 className="font-semibold text-blue-300">Tips</h3>
+             <ul className="list-disc list-inside mt-2 space-y-1 text-sm">
+                 <li>Click "Customize" on the home screen to change the wallpaper.</li>
+                 <li>Your wallpaper choice is saved automatically.</li>
+             </ul>
+           </div>
+           <p className="text-xs uppercase tracking-widest text-gray-500 mt-8">Version 1.0.0</p>
         </div>
       </motion.div>
     </div>
