@@ -86,9 +86,13 @@ const StatusWidget = ({
     setWakingId(deviceId);
     const endpoint = deviceId === "home-pc" ? "wakeMain" : "wakeServer";
     try {
-      await fetch(
-        `https://sallie-extrusive-buzzingly.ngrok-free.dev/${endpoint}?key=denzel11`,
-      );
+      const API_URL = "https://sallie-extrusive-buzzingly.ngrok-free.dev"; // Changed .app to .dev
+
+      await fetch(`${API_URL}/${endpoint}?key=denzel11`, {
+        headers: {
+          "ngrok-skip-browser-warning": "true",
+        },
+      });
     } catch (e) {
       console.error("WoL failed", e);
     } finally {
