@@ -86,7 +86,9 @@ const StatusWidget = ({
     setWakingId(deviceId);
     const endpoint = deviceId === "home-pc" ? "wakeMain" : "wakeServer";
     try {
-      await fetch(`http://213.217.201.0:5000/${endpoint}?key=denzel11`);
+      await fetch(
+        `https://sallie-extrusive-buzzingly.ngrok-free.dev/${endpoint}?key=denzel11`,
+      );
     } catch (e) {
       console.error("WoL failed", e);
     } finally {
