@@ -354,7 +354,7 @@ const TimetableWidget = ({
     }
   };
   const handleLogout = () => signOut(auth);
-  
+
   const handleAddClass = async () => {
     if (!newClass.subject || !newClass.time || !user) return;
     try {
@@ -382,17 +382,17 @@ const TimetableWidget = ({
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-2xl bg-black/30 backdrop-blur-xl border border-white/10 rounded-2xl p-6 shadow-2xl overflow-hidden relative"
+        // FIXED: Removed max-w-2xl so it fills the parent container from Home.tsx
+        className="w-full h-full bg-black/30 backdrop-blur-xl border border-white/10 rounded-2xl p-6 shadow-2xl overflow-hidden relative"
       >
         {/* Header */}
         <div className="flex flex-col md:flex-row items-center justify-between mb-6 border-b border-white/10 pb-4 gap-4">
           <div className={`flex items-center gap-2 ${theme.text}`}>
             <Calendar size={20} />
             <span className="font-semibold tracking-wide">Weekly Schedule</span>
-            
+
             {!isAuthLoading && user ? (
               <div className="flex items-center gap-1 ml-2 border-l border-white/10 pl-3">
-                {/* --- NEW ADD BUTTON IN HEADER --- */}
                 <button
                   onClick={() => setIsAdding(true)}
                   className="p-1.5 rounded-lg hover:bg-white/10 text-white/50 hover:text-white transition-colors"
@@ -417,13 +417,14 @@ const TimetableWidget = ({
               </button>
             )}
           </div>
-          
+
           <div className="flex gap-1 bg-black/20 p-1 rounded-lg overflow-x-auto max-w-full">
             {daysOfWeek.map((day) => (
               <button
                 key={day}
                 onClick={() => setSelectedDay(day)}
-                className={`px-3 py-1 text-xs rounded-md whitespace-nowrap transition-colors ${
+                // FIXED: Fixed width (w-12) and centered content for stability
+                className={`w-12 py-1 text-xs rounded-md whitespace-nowrap transition-colors flex justify-center ${
                   selectedDay === day
                     ? `${theme.primary} text-white`
                     : "text-gray-400 hover:text-white"
