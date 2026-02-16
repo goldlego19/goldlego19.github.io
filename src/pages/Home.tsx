@@ -176,7 +176,8 @@ const Home = () => {
   }, []);
 
   return (
-    <div className="relative flex flex-col items-center min-h-screen text-white overflow-hidden font-sans">
+    // PARENT: Fixed screen height
+    <div className="relative flex flex-col items-center h-screen text-white overflow-hidden font-sans">
       <div
         className="absolute inset-0 z-0 bg-cover bg-center"
         style={{ backgroundImage: `url('${bg}')`, filter: "brightness(0.5)" }}
@@ -185,28 +186,41 @@ const Home = () => {
       <motion.div
         initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
-        className="relative z-10 w-full mx-auto px-4 flex flex-col items-center pt-20 pb-10 overflow-y-auto h-full scrollbar-hide"
+        // SCROLL LOGIC:
+        // overflow-y-auto: Allows scrolling by default (Mobile)
+        // xl:overflow-hidden: Locks scrolling on large screens (Desktop)
+        // scrollbar-hide: Keeps the UI clean
+        className="relative z-10 w-full mx-auto px-4 flex flex-col items-center pt-10 pb-10 flex-1 overflow-y-auto xl:overflow-hidden scrollbar-hide"
       >
-        <h1 className="mb-2 text-6xl font-bold tracking-tight text-white drop-shadow-2xl text-center">
+        <h1 className="mb-2 text-4xl md:text-6xl font-bold tracking-tight text-white drop-shadow-2xl text-center">
           {greet}
         </h1>
-        <p className="mb-12 text-xl text-gray-200 font-light tracking-wide text-center">
+        <p className="mb-8 md:mb-12 text-lg md:text-xl text-gray-200 font-light tracking-wide text-center">
           Stay focused.
         </p>
         <GoogleSearch />
 
-        {/* --- FIXED LAYOUT --- */}
-        <div className="mt-12 w-full flex flex-col xl:flex-row justify-center items-center gap-8">
-          <div className="max-w-2xl">
+        {/* --- RESPONSIVE LAYOUT FIX --- */}
+        <div className="mt-8 md:mt-12 w-full max-w-[1600px] flex flex-col xl:flex-row items-center xl:items-start justify-center gap-6 px-4">
+          
+          {/* Left Column (Status) */}
+          <div className="w-full max-w-md xl:w-1/4 order-1">
             <StatusWidget accentColor={accent} />
           </div>
-          <TimetableWidget accentColor={accent} />
-          <div className="w-[15%]">
+
+          {/* Center Column (Timetable) - TIGHT WRAPPING to fix gap */}
+          <div className="w-full max-w-2xl order-2">
+            <TimetableWidget accentColor={accent} />
+          </div>
+
+          {/* Right Column (Bookmarks) */}
+          <div className="w-full max-w-md xl:w-1/4 order-3">
             <BookmarksWidget accentColor={accent} />
           </div>
         </div>
 
-        <div className="mt-16 flex flex-wrap justify-center gap-4 pb-10">
+        {/* Footer Buttons */}
+        <div className="mt-12 flex flex-wrap justify-center gap-4 pb-10">
           <button
             onClick={() => setDrawer(true)}
             className="inline-flex items-center gap-2 px-4 py-2 text-sm text-gray-300 bg-black/30 hover:bg-black/50 hover:text-white rounded-full backdrop-blur-sm border border-white/5"

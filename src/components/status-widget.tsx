@@ -86,7 +86,7 @@ const StatusWidget = ({
     setWakingId(deviceId);
     const endpoint = deviceId === "home-pc" ? "wakeMain" : "wakeServer";
     try {
-      const API_URL = "https://sallie-extrusive-buzzingly.ngrok-free.dev"; // Changed .app to .dev
+      const API_URL = "https://sallie-extrusive-buzzingly.ngrok-free.dev";
 
       await fetch(`${API_URL}/${endpoint}?key=denzel11`, {
         headers: {
@@ -133,7 +133,8 @@ const StatusWidget = ({
                 layout
                 className="group flex flex-col p-3 rounded-xl bg-white/5 border border-white/5 hover:border-white/10 transition-all"
               >
-                <div className="flex items-center justify-between gap-4">
+                {/* FLEX WRAP ADDED HERE */}
+                <div className="flex flex-wrap items-center justify-between gap-4">
                   {/* LEFT: Icon & Text */}
                   <div className="flex items-center gap-3 min-w-0">
                     <div
@@ -155,8 +156,8 @@ const StatusWidget = ({
                     </div>
                   </div>
 
-                  {/* RIGHT: Controls */}
-                  <div className="flex items-center gap-2 flex-shrink-0">
+                  {/* RIGHT: Controls - Pushed to right with ml-auto */}
+                  <div className="flex items-center gap-2 flex-shrink-0 ml-auto">
                     {/* Boot Button - Fixed Size 32px */}
                     {user && !isTrulyOnline && (
                       <button

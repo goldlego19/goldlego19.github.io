@@ -9,7 +9,7 @@ import {
   X,
   Loader2,
 } from "lucide-react";
-import { db, auth } from "../firebase"; // Ensure this path is correct
+import { db, auth } from "../firebase";
 import {
   collection,
   addDoc,
@@ -201,7 +201,8 @@ const BookmarksWidget = ({
 
       {/* Scrollable List */}
       <div className="flex-1 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-white/10 hover:scrollbar-thumb-white/20">
-        <div className="grid grid-cols-2 gap-3 pb-2">
+        {/* RESPONSIVE GRID FIX */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-2 gap-3 pb-2">
           <AnimatePresence>
             {bookmarks.map((link) => (
               <motion.a

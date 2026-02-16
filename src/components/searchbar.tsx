@@ -11,7 +11,7 @@ const GoogleSearch = () => {
   }
 
   return (
-    <form onSubmit={handleSearch} className="w-full max-w-md mx-auto mt-10">
+    <form onSubmit={handleSearch} className="w-full max-w-md mx-auto ">
       <div className="relative group">
         <div className="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none">
           <Search className="w-5 h-5 text-gray-400 group-focus-within:text-blue-500 transition-colors" />

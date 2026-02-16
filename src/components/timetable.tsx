@@ -11,6 +11,7 @@ import {
   LogOut,
   Coffee,
   Timer,
+  X,
 } from "lucide-react";
 import { db, auth, googleProvider } from "../firebase";
 import {
@@ -63,7 +64,7 @@ const themeConfig: Record<
   AccentColor,
   {
     primary: string;
-    bg: string; // For the progress bar background
+    bg: string;
     text: string;
     badge: string;
     border: string;
@@ -134,7 +135,100 @@ const getTimeRange = (timeString: string) => {
   return { start: parseMinutes(parts[0]), end: parseMinutes(parts[1]) };
 };
 
-// --- COMPONENT ---
+// --- NEW MODAL COMPONENT ---
+const AddClassModal = ({
+  isOpen,
+  onClose,
+  onSave,
+  newClass,
+  setNewClass,
+  theme,
+}: any) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div
+        onClick={onClose}
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+      />
+      <motion.div
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.9, opacity: 0 }}
+        className="relative z-10 w-full max-w-md bg-gray-900 border border-white/10 p-6 rounded-2xl shadow-2xl backdrop-blur-xl"
+      >
+        <div className="flex justify-between items-center mb-6">
+          <h3 className="text-xl font-bold text-white flex items-center gap-2">
+            <Plus className={theme.text} size={24} /> Add New Class
+          </h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-white">
+            <X size={20} />
+          </button>
+        </div>
+
+        <div className="space-y-4">
+          <div>
+            <label className="text-xs text-gray-400 uppercase font-bold tracking-wider mb-1 block">
+              Time Range
+            </label>
+            <input
+              placeholder="09:00 - 10:00"
+              value={newClass.time}
+              onChange={(e) =>
+                setNewClass({ ...newClass, time: e.target.value })
+              }
+              className={`w-full bg-black/50 border border-white/10 rounded-lg px-4 py-3 text-white outline-none ${theme.border}`}
+            />
+          </div>
+          <div>
+            <label className="text-xs text-gray-400 uppercase font-bold tracking-wider mb-1 block">
+              Subject Name
+            </label>
+            <input
+              placeholder="Mathematics"
+              value={newClass.subject}
+              onChange={(e) =>
+                setNewClass({ ...newClass, subject: e.target.value })
+              }
+              className={`w-full bg-black/50 border border-white/10 rounded-lg px-4 py-3 text-white outline-none ${theme.border}`}
+            />
+          </div>
+          <div>
+            <label className="text-xs text-gray-400 uppercase font-bold tracking-wider mb-1 block">
+              Room / Location
+            </label>
+            <input
+              placeholder="Room 101"
+              value={newClass.room}
+              onChange={(e) =>
+                setNewClass({ ...newClass, room: e.target.value })
+              }
+              className={`w-full bg-black/50 border border-white/10 rounded-lg px-4 py-3 text-white outline-none ${theme.border}`}
+            />
+          </div>
+
+          <div className="pt-4 flex gap-3">
+            <button
+              onClick={onClose}
+              className="flex-1 py-3 bg-white/5 hover:bg-white/10 text-gray-300 rounded-xl font-medium transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={onSave}
+              className={`flex-1 py-3 text-white rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 ${theme.primary}`}
+            >
+              <Save size={18} /> Save Class
+            </button>
+          </div>
+        </div>
+      </motion.div>
+    </div>
+  );
+};
+
+// --- MAIN COMPONENT ---
 const TimetableWidget = ({
   accentColor = "blue",
 }: {
@@ -142,7 +236,7 @@ const TimetableWidget = ({
 }) => {
   const theme = themeConfig[accentColor];
 
-  // Current Time State (Ticks every second)
+  // Current Time State
   const [now, setNow] = useState(new Date());
 
   const todayStr = new Date().toLocaleDateString("en-US", { weekday: "long" });
@@ -158,12 +252,12 @@ const TimetableWidget = ({
   // Auth State
   const [user, setUser] = useState<User | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
-  const [isAdding, setIsAdding] = useState(false);
+  const [isAdding, setIsAdding] = useState(false); // Controls Modal
   const [newClass, setNewClass] = useState({ time: "", subject: "", room: "" });
 
   // --- 1. Tick Timer ---
   useEffect(() => {
-    const timer = setInterval(() => setNow(new Date()), 1000); // Update every second
+    const timer = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
 
@@ -233,13 +327,11 @@ const TimetableWidget = ({
 
   // --- 4. Active Class Logic ---
   const getCurrentStatus = (itemTime: string) => {
-    // Only show status if we are looking at TODAY's schedule
     if (selectedDay !== todayStr) return null;
 
     const { start, end } = getTimeRange(itemTime);
     const currentMinutes = now.getHours() * 60 + now.getMinutes();
 
-    // Check if NOW is inside this slot
     if (currentMinutes >= start && currentMinutes < end) {
       const totalDuration = end - start;
       const elapsed = currentMinutes - start;
@@ -262,6 +354,7 @@ const TimetableWidget = ({
     }
   };
   const handleLogout = () => signOut(auth);
+  
   const handleAddClass = async () => {
     if (!newClass.subject || !newClass.time || !user) return;
     try {
@@ -278,30 +371,43 @@ const TimetableWidget = ({
       console.error(e);
     }
   };
+
   const handleDelete = async (id: string) => {
     if (!user) return;
     if (confirm("Delete this class?")) await deleteDoc(doc(db, "classes", id));
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className=" w-full max-w-2xl bg-black/30 backdrop-blur-xl border border-white/10 rounded-2xl p-6 shadow-2xl overflow-hidden relative"
-    >
-      {/* Header */}
-      <div className="flex flex-col md:flex-row items-center justify-between mb-6 border-b border-white/10 pb-4 gap-4">
-        <div className={`flex items-center gap-2 ${theme.text}`}>
-          <Calendar size={20} />
-          <span className="font-semibold tracking-wide">Weekly Schedule</span>
-          {!isAuthLoading &&
-            (user ? (
-              <button
-                onClick={handleLogout}
-                className="ml-2 text-white/20 hover:text-red-400"
-              >
-                <LogOut size={14} />
-              </button>
+    <>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="w-full max-w-2xl bg-black/30 backdrop-blur-xl border border-white/10 rounded-2xl p-6 shadow-2xl overflow-hidden relative"
+      >
+        {/* Header */}
+        <div className="flex flex-col md:flex-row items-center justify-between mb-6 border-b border-white/10 pb-4 gap-4">
+          <div className={`flex items-center gap-2 ${theme.text}`}>
+            <Calendar size={20} />
+            <span className="font-semibold tracking-wide">Weekly Schedule</span>
+            
+            {!isAuthLoading && user ? (
+              <div className="flex items-center gap-1 ml-2 border-l border-white/10 pl-3">
+                {/* --- NEW ADD BUTTON IN HEADER --- */}
+                <button
+                  onClick={() => setIsAdding(true)}
+                  className="p-1.5 rounded-lg hover:bg-white/10 text-white/50 hover:text-white transition-colors"
+                  title="Add Class"
+                >
+                  <Plus size={16} />
+                </button>
+                <button
+                  onClick={handleLogout}
+                  className="p-1.5 rounded-lg hover:bg-red-500/20 text-white/50 hover:text-red-400 transition-colors"
+                  title="Logout"
+                >
+                  <LogOut size={16} />
+                </button>
+              </div>
             ) : (
               <button
                 onClick={handleGoogleLogin}
@@ -309,186 +415,146 @@ const TimetableWidget = ({
               >
                 <Lock size={14} />
               </button>
-            ))}
-        </div>
-        <div className="flex gap-1 bg-black/20 p-1 rounded-lg overflow-x-auto max-w-full">
-          {daysOfWeek.map((day) => (
-            <button
-              key={day}
-              onClick={() => setSelectedDay(day)}
-              className={`px-3 py-1 text-xs rounded-md whitespace-nowrap transition-colors ${
-                selectedDay === day
-                  ? `${theme.primary} text-white`
-                  : "text-gray-400 hover:text-white"
-              }`}
-            >
-              {day.slice(0, 3)}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* List */}
-      <div className="space-y-3 min-h-[200px]">
-        {isLoadingData ? (
-          <div className="flex justify-center py-10 text-gray-400">
-            <Loader2 className="animate-spin" />
+            )}
           </div>
-        ) : (
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={selectedDay}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="flex flex-col gap-3"
-            >
-              {displaySchedule.length > 0 ? (
-                displaySchedule.map((item) => {
-                  const status = getCurrentStatus(item.time);
-                  const isNow = !!status;
+          
+          <div className="flex gap-1 bg-black/20 p-1 rounded-lg overflow-x-auto max-w-full">
+            {daysOfWeek.map((day) => (
+              <button
+                key={day}
+                onClick={() => setSelectedDay(day)}
+                className={`px-3 py-1 text-xs rounded-md whitespace-nowrap transition-colors ${
+                  selectedDay === day
+                    ? `${theme.primary} text-white`
+                    : "text-gray-400 hover:text-white"
+                }`}
+              >
+                {day.slice(0, 3)}
+              </button>
+            ))}
+          </div>
+        </div>
 
-                  return item.type === "class" ? (
-                    // --- CLASS ITEM ---
-                    <div
-                      key={item.id}
-                      className={`group flex flex-col p-3 rounded-xl border transition-all ${
-                        isNow
-                          ? `bg-white/10 border-white/30 shadow-lg scale-[1.02]` // Highlight Active Class
-                          : `bg-white/5 border-white/5 hover:border-white/20`
-                      }`}
-                    >
-                      <div className="flex items-center justify-between w-full">
-                        <div className="flex items-center gap-4">
-                          <div
-                            className={`flex items-center gap-2 text-xs font-mono px-2 py-1 rounded ${isNow ? "bg-white text-black font-bold" : theme.badge}`}
-                          >
-                            <Clock size={12} /> {item.time}
-                          </div>
-                          <div>
+        {/* List */}
+        <div className="space-y-3 min-h-[200px]">
+          {isLoadingData ? (
+            <div className="flex justify-center py-10 text-gray-400">
+              <Loader2 className="animate-spin" />
+            </div>
+          ) : (
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={selectedDay}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="flex flex-col gap-3"
+              >
+                {displaySchedule.length > 0 ? (
+                  displaySchedule.map((item) => {
+                    const status = getCurrentStatus(item.time);
+                    const isNow = !!status;
+
+                    return item.type === "class" ? (
+                      // --- CLASS ITEM ---
+                      <div
+                        key={item.id}
+                        className={`group flex flex-col p-3 rounded-xl border transition-all ${
+                          isNow
+                            ? `bg-white/10 border-white/30 shadow-lg scale-[1.02]`
+                            : `bg-white/5 border-white/5 hover:border-white/20`
+                        }`}
+                      >
+                        <div className="flex items-center justify-between w-full">
+                          <div className="flex items-center gap-4">
                             <div
-                              className={`font-medium ${isNow ? "text-white text-lg" : "text-gray-100"}`}
+                              className={`flex items-center gap-2 text-xs font-mono px-2 py-1 rounded ${isNow ? "bg-white text-black font-bold" : theme.badge}`}
                             >
-                              {item.subject}
+                              <Clock size={12} /> {item.time}
                             </div>
-                            <div className="text-xs text-gray-500">
-                              {item.room}
+                            <div>
+                              <div
+                                className={`font-medium ${isNow ? "text-white text-lg" : "text-gray-100"}`}
+                              >
+                                {item.subject}
+                              </div>
+                              <div className="text-xs text-gray-500">
+                                {item.room}
+                              </div>
                             </div>
                           </div>
+                          {user && (
+                            <button
+                              onClick={() => handleDelete(item.id)}
+                              className="p-2 text-red-400 opacity-0 group-hover:opacity-100 hover:bg-red-400/10 rounded-lg transition-all"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          )}
                         </div>
-                        {user && (
-                          <button
-                            onClick={() => handleDelete(item.id)}
-                            className="p-2 text-red-400 opacity-0 group-hover:opacity-100 hover:bg-red-400/10 rounded-lg transition-all"
+
+                        {isNow && (
+                          <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: "auto", opacity: 1 }}
+                            className="mt-3 w-full"
                           >
-                            <Trash2 size={16} />
-                          </button>
+                            <div className="flex justify-between text-[10px] uppercase tracking-wider font-semibold text-gray-400 mb-1">
+                              <span className="flex items-center gap-1">
+                                <Timer size={10} /> Live
+                              </span>
+                              <span className={theme.text}>
+                                {status.remaining} min left
+                              </span>
+                            </div>
+                            <div className="h-1.5 w-full bg-black/40 rounded-full overflow-hidden">
+                              <motion.div
+                                className={`h-full ${theme.primary}`}
+                                initial={{ width: 0 }}
+                                animate={{ width: `${status.percent}%` }}
+                                transition={{ duration: 1 }}
+                              />
+                            </div>
+                          </motion.div>
                         )}
                       </div>
-
-                      {/* --- PROGRESS BAR (Only if Active) --- */}
-                      {isNow && (
-                        <motion.div
-                          initial={{ height: 0, opacity: 0 }}
-                          animate={{ height: "auto", opacity: 1 }}
-                          className="mt-3 w-full"
-                        >
-                          <div className="flex justify-between text-[10px] uppercase tracking-wider font-semibold text-gray-400 mb-1">
-                            <span className="flex items-center gap-1">
-                              <Timer size={10} /> Live
-                            </span>
-                            <span className={theme.text}>
-                              {status.remaining} min left
-                            </span>
-                          </div>
-                          <div className="h-1.5 w-full bg-black/40 rounded-full overflow-hidden">
-                            <motion.div
-                              className={`h-full ${theme.primary}`}
-                              initial={{ width: 0 }}
-                              animate={{ width: `${status.percent}%` }}
-                              transition={{ duration: 1 }}
-                            />
-                          </div>
-                        </motion.div>
-                      )}
-                    </div>
-                  ) : (
-                    // --- BREAK ITEM ---
-                    <div
-                      key={item.id}
-                      className="flex items-center justify-center p-2 rounded-lg bg-white/5 border border-dashed border-white/10 text-gray-500 text-xs opacity-60 hover:opacity-100 transition-opacity"
-                    >
-                      <Coffee size={12} className="mr-2" />
-                      <span className="font-mono mr-2">{item.time}</span>
-                      <span>Break ({item.duration} min)</span>
-                    </div>
-                  );
-                })
-              ) : (
-                <div className="text-center py-8 text-gray-500 italic">
-                  No classes scheduled.
-                </div>
-              )}
-            </motion.div>
-          </AnimatePresence>
-        )}
-      </div>
-
-      {/* Add Class Form */}
-      {!isAuthLoading && user && (
-        <div className="mt-6 pt-4 border-t border-white/10">
-          {!isAdding ? (
-            <button
-              onClick={() => setIsAdding(true)}
-              className="w-full py-2 flex items-center justify-center gap-2 text-sm text-gray-400 hover:text-white hover:bg-white/5 rounded-lg border border-dashed border-gray-700"
-            >
-              <Plus size={16} /> Add Class
-            </button>
-          ) : (
-            <div className="bg-black/40 p-4 rounded-xl border border-white/10 space-y-3">
-              <div className="grid grid-cols-2 gap-3">
-                <input
-                  placeholder="09:00 - 10:00"
-                  value={newClass.time}
-                  onChange={(e) =>
-                    setNewClass({ ...newClass, time: e.target.value })
-                  }
-                  className={`bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white outline-none ${theme.border}`}
-                />
-                <input
-                  placeholder="Room 101"
-                  value={newClass.room}
-                  onChange={(e) =>
-                    setNewClass({ ...newClass, room: e.target.value })
-                  }
-                  className={`bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white outline-none ${theme.border}`}
-                />
-                <input
-                  placeholder="Subject Name"
-                  value={newClass.subject}
-                  onChange={(e) =>
-                    setNewClass({ ...newClass, subject: e.target.value })
-                  }
-                  className={`col-span-2 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white outline-none ${theme.border}`}
-                />
-              </div>
-              <button
-                onClick={handleAddClass}
-                className={`w-full mt-2 text-white py-2 rounded-lg text-sm font-medium transition-colors ${theme.primary}`}
-              >
-                <Save size={16} className="inline mr-2" /> Save
-              </button>
-              <button
-                onClick={() => setIsAdding(false)}
-                className="w-full text-xs text-gray-500 mt-1"
-              >
-                Cancel
-              </button>
-            </div>
+                    ) : (
+                      // --- BREAK ITEM ---
+                      <div
+                        key={item.id}
+                        className="flex items-center justify-center p-2 rounded-lg bg-white/5 border border-dashed border-white/10 text-gray-500 text-xs opacity-60 hover:opacity-100 transition-opacity"
+                      >
+                        <Coffee size={12} className="mr-2" />
+                        <span className="font-mono mr-2">{item.time}</span>
+                        <span>Break ({item.duration} min)</span>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="text-center py-8 text-gray-500 italic">
+                    No classes scheduled.
+                  </div>
+                )}
+              </motion.div>
+            </AnimatePresence>
           )}
         </div>
-      )}
-    </motion.div>
+      </motion.div>
+
+      {/* --- RENDER MODAL OUTSIDE THE MAIN WIDGET DIV --- */}
+      <AnimatePresence>
+        {isAdding && (
+          <AddClassModal
+            isOpen={isAdding}
+            onClose={() => setIsAdding(false)}
+            onSave={handleAddClass}
+            newClass={newClass}
+            setNewClass={setNewClass}
+            theme={theme}
+          />
+        )}
+      </AnimatePresence>
+    </>
   );
 };
 
