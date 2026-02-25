@@ -200,38 +200,65 @@ const MoneyWidget = ({ accentColor }: { accentColor: AccentColor }) => {
     // --- 1. PAYCHECK LOGIC ---
     const getPayDate = (y: number, m: number) => {
       let d = new Date(y, m + 1, 0);
-      if (d.getDay() === 6) d.setDate(d.getDate() - 1);
-      else if (d.getDay() === 0) d.setDate(d.getDate() - 2);
+      if (d.getDay() === 6) d.setDate(d.getDate() - 1); // If Saturday, make it Friday
+      else if (d.getDay() === 0) d.setDate(d.getDate() - 2); // If Sunday, make it Friday
       return d;
     };
 
-    let payDate = getPayDate(today.getFullYear(), today.getMonth());
-    if (today > payDate) {
-      payDate = getPayDate(today.getFullYear(), today.getMonth() + 1);
+    const currentYear = today.getFullYear();
+    const currentMonth = today.getMonth();
+
+    let prevPayDate;
+    let nextPayDate = getPayDate(currentYear, currentMonth);
+
+    // If today is past this month's pay date, we are looking forward to next month
+    if (today > nextPayDate) {
+      prevPayDate = nextPayDate; // The one that just passed is now the 'prev'
+      nextPayDate = getPayDate(currentYear, currentMonth + 1);
+    } else {
+      // Otherwise, the previous pay date was last month
+      prevPayDate = getPayDate(currentYear, currentMonth - 1);
     }
 
-    const payDiff = payDate.getTime() - today.getTime();
+    const payDiff = nextPayDate.getTime() - today.getTime();
     const payDays = Math.ceil(payDiff / (1000 * 60 * 60 * 24));
-    const payProgress = Math.max(0, Math.min(1, (30 - payDays) / 30));
+    
+    // Dynamically calculate exactly how many days are in this specific pay cycle
+    const cycleTotalDays = Math.ceil((nextPayDate.getTime() - prevPayDate.getTime()) / (1000 * 60 * 60 * 24));
+
+    // Calculate progress using the exact cycle length instead of a hardcoded 30
+    const payProgress = Math.max(0, Math.min(1, (cycleTotalDays - payDays) / cycleTotalDays));
 
     setPaycheck({
       days: payDays,
       progress: payProgress,
-      date: payDate.toLocaleDateString("en-US", {
+      date: nextPayDate.toLocaleDateString("en-US", {
         month: "short",
         day: "numeric",
       }),
     });
 
     // --- 2. STIPEND LOGIC ---
-    const nextStipend = STIPEND_DATES.map((d) => parseDate(d))
-      .sort((a, b) => a.getTime() - b.getTime())
-      .find((d) => d.getTime() > today.getTime());
+    // Sort dates chronologically
+    const sortedStipends = STIPEND_DATES.map((d) => parseDate(d))
+      .sort((a, b) => a.getTime() - b.getTime());
+
+    const nextStipend = sortedStipends.find((d) => d.getTime() > today.getTime());
+    
+    // Find the most recent past stipend to figure out the exact cycle length
+    const prevStipend = [...sortedStipends].reverse().find((d) => d.getTime() <= today.getTime());
 
     if (nextStipend) {
       const stipDiff = nextStipend.getTime() - today.getTime();
       const stipDays = Math.ceil(stipDiff / (1000 * 60 * 60 * 24));
-      const stipProgress = Math.max(0, Math.min(1, (90 - stipDays) / 90));
+      
+      // Dynamically calculate the total days in this specific cycle (defaults to 28 if it's the very first one)
+      const cycleTotalDays = prevStipend 
+        ? Math.ceil((nextStipend.getTime() - prevStipend.getTime()) / (1000 * 60 * 60 * 24))
+        : 28;
+
+      // Calculate progress based on the actual cycle length instead of a hardcoded 90
+      const stipProgress = Math.max(0, Math.min(1, (cycleTotalDays - stipDays) / cycleTotalDays));
 
       setStipend({
         days: stipDays,

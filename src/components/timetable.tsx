@@ -437,7 +437,7 @@ const TimetableWidget = ({
         </div>
 
         {/* List */}
-        <div className="space-y-3 min-h-[200px]">
+        <div className="space-y-3 min-h-[250px] max-h-[300px] md:max-h-[250px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-white/10 hover:scrollbar-thumb-white/20">
           {isLoadingData ? (
             <div className="flex justify-center py-10 text-gray-400">
               <Loader2 className="animate-spin" />
