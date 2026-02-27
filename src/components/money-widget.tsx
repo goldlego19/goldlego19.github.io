@@ -7,6 +7,7 @@ import {
   X,
   CheckCircle2,
   Clock,
+  Banknote, // Added the money icon
 } from "lucide-react";
 import { type AccentColor } from "./timetable";
 
@@ -43,7 +44,7 @@ const StipendModal = ({
     raw: d,
     date: parseDate(d),
     isPast: parseDate(d).getTime() < today.getTime(),
-    isNext: false, // Will calculate below
+    isNext: false,
   })).sort((a, b) => a.date.getTime() - b.date.getTime());
 
   // Mark the very next date
@@ -197,11 +198,12 @@ const MoneyWidget = ({ accentColor }: { accentColor: AccentColor }) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // --- 1. PAYCHECK LOGIC ---
+    // --- 1. PAYCHECK LOGIC (Dynamic Cycle) ---
     const getPayDate = (y: number, m: number) => {
       let d = new Date(y, m + 1, 0);
-      if (d.getDay() === 6) d.setDate(d.getDate() - 1); // If Saturday, make it Friday
-      else if (d.getDay() === 0) d.setDate(d.getDate() - 2); // If Sunday, make it Friday
+      if (d.getDay() === 6)
+        d.setDate(d.getDate() - 1); // Shift Saturday to Friday
+      else if (d.getDay() === 0) d.setDate(d.getDate() - 2); // Shift Sunday to Friday
       return d;
     };
 
@@ -211,23 +213,23 @@ const MoneyWidget = ({ accentColor }: { accentColor: AccentColor }) => {
     let prevPayDate;
     let nextPayDate = getPayDate(currentYear, currentMonth);
 
-    // If today is past this month's pay date, we are looking forward to next month
+    // Roll forward/backward safely to find exact current cycle boundaries
     if (today > nextPayDate) {
-      prevPayDate = nextPayDate; // The one that just passed is now the 'prev'
+      prevPayDate = nextPayDate;
       nextPayDate = getPayDate(currentYear, currentMonth + 1);
     } else {
-      // Otherwise, the previous pay date was last month
       prevPayDate = getPayDate(currentYear, currentMonth - 1);
     }
 
     const payDiff = nextPayDate.getTime() - today.getTime();
     const payDays = Math.ceil(payDiff / (1000 * 60 * 60 * 24));
-    
-    // Dynamically calculate exactly how many days are in this specific pay cycle
-    const cycleTotalDays = Math.ceil((nextPayDate.getTime() - prevPayDate.getTime()) / (1000 * 60 * 60 * 24));
-
-    // Calculate progress using the exact cycle length instead of a hardcoded 30
-    const payProgress = Math.max(0, Math.min(1, (cycleTotalDays - payDays) / cycleTotalDays));
+    const payCycleDays = Math.ceil(
+      (nextPayDate.getTime() - prevPayDate.getTime()) / (1000 * 60 * 60 * 24),
+    );
+    const payProgress = Math.max(
+      0,
+      Math.min(1, (payCycleDays - payDays) / payCycleDays),
+    );
 
     setPaycheck({
       days: payDays,
@@ -238,27 +240,33 @@ const MoneyWidget = ({ accentColor }: { accentColor: AccentColor }) => {
       }),
     });
 
-    // --- 2. STIPEND LOGIC ---
-    // Sort dates chronologically
-    const sortedStipends = STIPEND_DATES.map((d) => parseDate(d))
-      .sort((a, b) => a.getTime() - b.getTime());
+    // --- 2. STIPEND LOGIC (Dynamic Cycle) ---
+    const sortedStipends = STIPEND_DATES.map((d) => parseDate(d)).sort(
+      (a, b) => a.getTime() - b.getTime(),
+    );
 
-    const nextStipend = sortedStipends.find((d) => d.getTime() > today.getTime());
-    
-    // Find the most recent past stipend to figure out the exact cycle length
-    const prevStipend = [...sortedStipends].reverse().find((d) => d.getTime() <= today.getTime());
+    const nextStipend = sortedStipends.find(
+      (d) => d.getTime() >= today.getTime(),
+    );
+    const prevStipend = [...sortedStipends]
+      .reverse()
+      .find((d) => d.getTime() < today.getTime());
 
     if (nextStipend) {
       const stipDiff = nextStipend.getTime() - today.getTime();
       const stipDays = Math.ceil(stipDiff / (1000 * 60 * 60 * 24));
-      
-      // Dynamically calculate the total days in this specific cycle (defaults to 28 if it's the very first one)
-      const cycleTotalDays = prevStipend 
-        ? Math.ceil((nextStipend.getTime() - prevStipend.getTime()) / (1000 * 60 * 60 * 24))
+
+      const stipCycleDays = prevStipend
+        ? Math.ceil(
+            (nextStipend.getTime() - prevStipend.getTime()) /
+              (1000 * 60 * 60 * 24),
+          )
         : 28;
 
-      // Calculate progress based on the actual cycle length instead of a hardcoded 90
-      const stipProgress = Math.max(0, Math.min(1, (cycleTotalDays - stipDays) / cycleTotalDays));
+      const stipProgress = Math.max(
+        0,
+        Math.min(1, (stipCycleDays - stipDays) / stipCycleDays),
+      );
 
       setStipend({
         days: stipDays,
@@ -273,7 +281,7 @@ const MoneyWidget = ({ accentColor }: { accentColor: AccentColor }) => {
     }
   }, []);
 
-  // Small Circle Component
+  // --- SMALL CIRCLE COMPONENT ---
   const MiniCircle = ({
     progress,
     days,
@@ -285,6 +293,7 @@ const MoneyWidget = ({ accentColor }: { accentColor: AccentColor }) => {
     const r = 40;
     const c = 2 * Math.PI * r;
     const isInteractive = !!onClick;
+    const isToday = days === 0;
 
     return (
       <div
@@ -292,7 +301,7 @@ const MoneyWidget = ({ accentColor }: { accentColor: AccentColor }) => {
         className={`flex flex-col items-center gap-2 group ${isInteractive ? "cursor-pointer" : ""}`}
       >
         <div className="relative flex items-center justify-center transition-transform duration-300 group-hover:scale-105">
-          <svg className="transform -rotate-90 w-24 h-24">
+          <svg className="transform -rotate-90 w-24 h-24 overflow-visible">
             <circle
               cx="48"
               cy="48"
@@ -304,8 +313,21 @@ const MoneyWidget = ({ accentColor }: { accentColor: AccentColor }) => {
             />
             <motion.circle
               initial={{ strokeDashoffset: c }}
-              animate={{ strokeDashoffset: c - progress * c }}
-              transition={{ duration: 1.5, ease: "easeOut" }}
+              animate={{
+                strokeDashoffset: c - progress * c,
+                // Apply a glowing pulse effect if it's payday
+                filter: isToday
+                  ? [
+                      `drop-shadow(0px 0px 2px ${getColor("stroke")})`,
+                      `drop-shadow(0px 0px 10px ${getColor("stroke")})`,
+                      `drop-shadow(0px 0px 2px ${getColor("stroke")})`,
+                    ]
+                  : "none",
+              }}
+              transition={{
+                strokeDashoffset: { duration: 1.5, ease: "easeOut" },
+                filter: { duration: 2, repeat: Infinity, ease: "easeInOut" },
+              }}
               cx="48"
               cy="48"
               r={r}
@@ -316,10 +338,36 @@ const MoneyWidget = ({ accentColor }: { accentColor: AccentColor }) => {
               strokeLinecap="round"
             />
           </svg>
+
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <Icon size={14} className={getColor("text")} />
-            <span className="text-xl font-bold text-white">{days}</span>
-            <span className="text-[9px] text-gray-400 uppercase">Days</span>
+            {isToday ? (
+              // PAYDAY ANIMATION
+              <motion.div
+                animate={{ scale: [1, 1.15, 1] }}
+                transition={{
+                  repeat: Infinity,
+                  duration: 1.5,
+                  ease: "easeInOut",
+                }}
+                className="flex flex-col items-center"
+              >
+                <Banknote size={26} className={getColor("text")} />
+                <span
+                  className={`text-[10px] uppercase font-bold mt-1 ${getColor("text")}`}
+                >
+                  Today!
+                </span>
+              </motion.div>
+            ) : (
+              // STANDARD VIEW
+              <>
+                <Icon size={14} className={getColor("text")} />
+                <span className="text-xl font-bold text-white mt-0.5">
+                  {days}
+                </span>
+                <span className="text-[9px] text-gray-400 uppercase">Days</span>
+              </>
+            )}
           </div>
 
           {/* Hover Hint for Interactive elements */}
@@ -327,7 +375,8 @@ const MoneyWidget = ({ accentColor }: { accentColor: AccentColor }) => {
             <div className="absolute inset-0 rounded-full bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity" />
           )}
         </div>
-        <div className="text-center">
+
+        <div className="text-center mt-1">
           <p className="text-xs font-medium text-gray-300 flex items-center gap-1 justify-center">
             {label}
             {isInteractive && (
@@ -335,7 +384,7 @@ const MoneyWidget = ({ accentColor }: { accentColor: AccentColor }) => {
             )}
           </p>
           <p className={`text-[10px] font-mono opacity-60 ${getColor("text")}`}>
-            {date}
+            {isToday ? "Payday!" : date}
           </p>
         </div>
       </div>
@@ -375,7 +424,7 @@ const MoneyWidget = ({ accentColor }: { accentColor: AccentColor }) => {
             label="Stipend"
             date={stipend.date}
             icon={Calendar}
-            onClick={() => setShowModal(true)} // <-- Added Click Handler
+            onClick={() => setShowModal(true)}
           />
         </div>
       </motion.div>
