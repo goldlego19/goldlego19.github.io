@@ -26,6 +26,7 @@ import TimetableWidget, { type AccentColor } from "../components/timetable";
 import StatusWidget from "../components/status-widget";
 import BookmarksWidget from "../components/bookmarks";
 import MoneyWidget from "../components/money-widget";
+import AssignmentsWidget from "../components/assignments";
 
 // --- CONFIGURATION ---
 const bgModules = import.meta.glob(
@@ -67,6 +68,12 @@ const ALL_WIDGETS_CONFIG = [
     component: BookmarksWidget,
     width: "xl:w-[400px]",
   },
+  {
+    id: "assignments",
+    label: "Assignments",
+    component: AssignmentsWidget,
+    width: "xl:w-[400px]",
+  }
 ];
 
 // --- MODALS ---
