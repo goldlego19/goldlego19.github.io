@@ -11,12 +11,15 @@ import {
   Clock,
   AlertCircle,
   MapPin,
-  ListFilter
+  ListFilter,
+  Pencil,
+  HelpCircle
 } from "lucide-react";
 import { db, auth } from "../firebase";
 import {
   collection,
   addDoc,
+  updateDoc,
   deleteDoc,
   doc,
   onSnapshot,
@@ -25,12 +28,12 @@ import {
 import { onAuthStateChanged, type User } from "firebase/auth";
 import { type AccentColor } from "./timetable";
 
-type TaskType = "Assignment" | "Exam";
+type TaskType = "Assignment" | "Exam" | "TBA";
 
 interface Task {
   id: string;
   title: string;
-  dueDate: string; // YYYY-MM-DD
+  dueDate?: string; // Optional Date
   type: TaskType;
   time?: string;
   room?: string;
@@ -45,7 +48,8 @@ const getOrdinalSuffix = (i: number) => {
   return i + "th";
 };
 
-const formatUKDate = (dateStr: string) => {
+const formatUKDate = (dateStr?: string) => {
+  if (!dateStr) return "Date TBD";
   const d = new Date(dateStr);
   d.setMinutes(d.getMinutes() + d.getTimezoneOffset()); 
   
@@ -53,26 +57,25 @@ const formatUKDate = (dateStr: string) => {
   const day = d.getDate();
   const month = d.toLocaleDateString("en-GB", { month: "long" });
   
-  return `${weekday} ${getOrdinalSuffix(day)} ${month}`;
+  return `${weekday} ${day}${getOrdinalSuffix(day)} ${month}`;
 };
 
-const calculateDaysRemaining = (dateStr: string) => {
+const calculateDaysRemaining = (dateStr?: string) => {
+  if (!dateStr) return null; // Return null for tasks without a date
   const due = new Date(dateStr);
   due.setMinutes(due.getMinutes() + due.getTimezoneOffset());
   due.setHours(23, 59, 59, 999); 
 
   const today = new Date();
   const diffTime = due.getTime() - today.getTime();
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  
-  return diffDays;
+  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 };
 
 // --- REUSABLE TASK CARD COMPONENT ---
-const TaskCard = ({ task, theme, user, onDelete }: { task: Task, theme: any, user: User | null, onDelete: (id: string) => void }) => {
+const TaskCard = ({ task, theme, user, onEdit, onDelete }: { task: Task, theme: any, user: User | null, onEdit: (t: Task) => void, onDelete: (id: string) => void }) => {
   const daysLeft = calculateDaysRemaining(task.dueDate);
-  const isUrgent = daysLeft >= 0 && daysLeft <= 3;
-  const isOverdue = daysLeft < 0;
+  const isUrgent = daysLeft !== null && daysLeft >= 0 && daysLeft <= 3;
+  const isOverdue = daysLeft !== null && daysLeft < 0;
 
   return (
     <motion.div
@@ -87,7 +90,7 @@ const TaskCard = ({ task, theme, user, onDelete }: { task: Task, theme: any, use
       }`}
     >
       <div className="flex justify-between items-start">
-        <div className="flex-1 pr-6">
+        <div className="flex-1 pr-12"> {/* Added more right padding for absolute buttons */}
           <div className="flex items-center gap-2 mb-1">
             <h4 className={`font-semibold text-lg ${isUrgent ? 'text-red-100' : 'text-white'}`}>
               {task.title}
@@ -98,7 +101,9 @@ const TaskCard = ({ task, theme, user, onDelete }: { task: Task, theme: any, use
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-400 mb-3">
             <div className="flex items-center gap-1.5">
               <CalendarIcon size={12} />
-              <span>{formatUKDate(task.dueDate)}</span>
+              <span className={!task.dueDate ? "italic opacity-70" : ""}>
+                {formatUKDate(task.dueDate)}
+              </span>
             </div>
             
             {task.time && (
@@ -121,9 +126,10 @@ const TaskCard = ({ task, theme, user, onDelete }: { task: Task, theme: any, use
           <div className="flex items-center gap-3">
             <span className={`inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-md ${
               task.type === 'Exam' ? 'bg-purple-500/20 text-purple-300 border border-purple-500/20' 
+              : task.type === 'TBA' ? 'bg-gray-500/20 text-gray-300 border border-gray-500/20'
               : 'bg-blue-500/20 text-blue-300 border border-blue-500/20'
             }`}>
-              {task.type === 'Exam' ? <GraduationCap size={10} /> : <BookOpen size={10} />}
+              {task.type === 'Exam' ? <GraduationCap size={10} /> : task.type === 'TBA' ? <HelpCircle size={10} /> : <BookOpen size={10} />}
               {task.type}
             </span>
             
@@ -133,18 +139,29 @@ const TaskCard = ({ task, theme, user, onDelete }: { task: Task, theme: any, use
               : theme.text
             }`}>
               <Clock size={12} />
-              {isOverdue ? 'Passed' : daysLeft === 0 ? 'Due Today' : daysLeft === 1 ? '1 Day Remaining' : `${daysLeft} Days Remaining`}
+              {daysLeft === null ? 'No Date Set' : isOverdue ? 'Passed' : daysLeft === 0 ? 'Due Today' : daysLeft === 1 ? '1 Day Remaining' : `${daysLeft} Days Remaining`}
             </span>
           </div>
         </div>
 
+        {/* Action Buttons Container */}
         {user && (
-          <button
-            onClick={() => onDelete(task.id)}
-            className="p-2 text-red-400 opacity-0 group-hover:opacity-100 hover:bg-red-400/10 rounded-lg transition-all absolute top-3 right-3"
-          >
-            <Trash2 size={16} />
-          </button>
+          <div className="absolute top-3 right-3 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <button
+              onClick={() => onEdit(task)}
+              className="p-2 text-blue-400 hover:bg-blue-400/10 rounded-lg transition-all"
+              title="Edit Task"
+            >
+              <Pencil size={16} />
+            </button>
+            <button
+              onClick={() => onDelete(task.id)}
+              className="p-2 text-red-400 hover:bg-red-400/10 rounded-lg transition-all"
+              title="Delete Task"
+            >
+              <Trash2 size={16} />
+            </button>
+          </div>
         )}
       </div>
     </motion.div>
@@ -152,7 +169,7 @@ const TaskCard = ({ task, theme, user, onDelete }: { task: Task, theme: any, use
 };
 
 // --- SHOW ALL MODAL ---
-const ShowAllModal = ({ isOpen, onClose, tasks, theme, user, onDelete }: any) => {
+const ShowAllModal = ({ isOpen, onClose, tasks, theme, user, onEdit, onDelete }: any) => {
   if (!isOpen) return null;
 
   return (
@@ -169,17 +186,13 @@ const ShowAllModal = ({ isOpen, onClose, tasks, theme, user, onDelete }: any) =>
             <ListFilter size={20} className={theme.text} />
             All Upcoming Deadlines
           </h2>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-white p-1 rounded-full hover:bg-white/10 transition-colors"
-          >
+          <button onClick={onClose} className="text-gray-400 hover:text-white p-1 rounded-full hover:bg-white/10 transition-colors">
             <X size={20} />
           </button>
         </div>
-
         <div className="space-y-3 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-white/10 hover:scrollbar-thumb-white/20 pb-4">
           {tasks.map((task: Task) => (
-            <TaskCard key={task.id} task={task} theme={theme} user={user} onDelete={onDelete} />
+            <TaskCard key={task.id} task={task} theme={theme} user={user} onEdit={onEdit} onDelete={onDelete} />
           ))}
         </div>
       </motion.div>
@@ -187,38 +200,41 @@ const ShowAllModal = ({ isOpen, onClose, tasks, theme, user, onDelete }: any) =>
   );
 };
 
-// --- ADD TASK MODAL ---
-const AddTaskModal = ({ isOpen, onClose, theme, user }: any) => {
-  const [newTask, setNewTask] = useState({ 
-    title: "", 
-    dueDate: "", 
-    time: "", 
-    room: "", 
-    type: "Assignment" as TaskType 
+// --- UNIVERSAL TASK MODAL (ADD / EDIT) ---
+const TaskModal = ({ isOpen, onClose, theme, user, existingTask }: any) => {
+  const [taskData, setTaskData] = useState({ 
+    title: existingTask?.title || "", 
+    dueDate: existingTask?.dueDate || "", 
+    time: existingTask?.time || "", 
+    room: existingTask?.room || "", 
+    type: (existingTask?.type || "Assignment") as TaskType 
   });
 
+  const isEditing = !!existingTask;
+
   const handleSave = async () => {
-    if (!newTask.title || !newTask.dueDate || !user) return;
+    if (!taskData.title || !user) return; // Title is still required
     try {
-      await addDoc(collection(db, "assignments"), {
-        title: newTask.title,
-        dueDate: newTask.dueDate,
-        time: newTask.time,
-        room: newTask.room,
-        type: newTask.type,
-        createdAt: new Date(),
-      });
-      setNewTask({ title: "", dueDate: "", time: "", room: "", type: "Assignment" });
+      if (isEditing) {
+        await updateDoc(doc(db, "assignments", existingTask.id), {
+          ...taskData,
+        });
+      } else {
+        await addDoc(collection(db, "assignments"), {
+          ...taskData,
+          createdAt: new Date(),
+        });
+      }
       onClose();
     } catch (e) {
-      console.error("Error adding task: ", e);
+      console.error("Error saving task: ", e);
     }
   };
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
       <div onClick={onClose} className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
       <motion.div
         initial={{ scale: 0.9, opacity: 0 }}
@@ -228,7 +244,8 @@ const AddTaskModal = ({ isOpen, onClose, theme, user }: any) => {
       >
         <div className="flex justify-between items-center mb-6">
           <h3 className="text-xl font-bold text-white flex items-center gap-2">
-            <Plus className={theme.text} size={24} /> Add New Deadline
+            {isEditing ? <Pencil className={theme.text} size={22} /> : <Plus className={theme.text} size={24} />}
+            {isEditing ? "Edit Task" : "Add New Deadline"}
           </h3>
           <button onClick={onClose} className="text-gray-400 hover:text-white">
             <X size={20} />
@@ -237,21 +254,21 @@ const AddTaskModal = ({ isOpen, onClose, theme, user }: any) => {
 
         <div className="space-y-4">
           <div>
-            <label className="text-xs text-gray-400 uppercase font-bold tracking-wider mb-1 block">Title</label>
+            <label className="text-xs text-gray-400 uppercase font-bold tracking-wider mb-1 block">Title *</label>
             <input
               placeholder="e.g. Home Assignment"
-              value={newTask.title}
-              onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
+              value={taskData.title}
+              onChange={(e) => setTaskData({ ...taskData, title: e.target.value })}
               className={`w-full bg-black/50 border border-white/10 rounded-lg px-4 py-3 text-white outline-none ${theme.border}`}
             />
           </div>
           
           <div>
-            <label className="text-xs text-gray-400 uppercase font-bold tracking-wider mb-1 block">Due Date</label>
+            <label className="text-xs text-gray-400 uppercase font-bold tracking-wider mb-1 block">Due Date (Optional)</label>
             <input
               type="date"
-              value={newTask.dueDate}
-              onChange={(e) => setNewTask({ ...newTask, dueDate: e.target.value })}
+              value={taskData.dueDate}
+              onChange={(e) => setTaskData({ ...taskData, dueDate: e.target.value })}
               className={`w-full bg-black/50 border border-white/10 rounded-lg px-4 py-3 text-white outline-none ${theme.border} [color-scheme:dark]`}
             />
           </div>
@@ -261,8 +278,8 @@ const AddTaskModal = ({ isOpen, onClose, theme, user }: any) => {
               <label className="text-xs text-gray-400 uppercase font-bold tracking-wider mb-1 block">Time (Opt)</label>
               <input
                 type="time"
-                value={newTask.time}
-                onChange={(e) => setNewTask({ ...newTask, time: e.target.value })}
+                value={taskData.time}
+                onChange={(e) => setTaskData({ ...taskData, time: e.target.value })}
                 className={`w-full bg-black/50 border border-white/10 rounded-lg px-4 py-3 text-white outline-none ${theme.border} [color-scheme:dark]`}
               />
             </div>
@@ -270,8 +287,8 @@ const AddTaskModal = ({ isOpen, onClose, theme, user }: any) => {
               <label className="text-xs text-gray-400 uppercase font-bold tracking-wider mb-1 block">Room (Opt)</label>
               <input
                 placeholder="e.g. Hall A"
-                value={newTask.room}
-                onChange={(e) => setNewTask({ ...newTask, room: e.target.value })}
+                value={taskData.room}
+                onChange={(e) => setTaskData({ ...taskData, room: e.target.value })}
                 className={`w-full bg-black/50 border border-white/10 rounded-lg px-4 py-3 text-white outline-none ${theme.border}`}
               />
             </div>
@@ -279,30 +296,29 @@ const AddTaskModal = ({ isOpen, onClose, theme, user }: any) => {
 
           <div>
             <label className="text-xs text-gray-400 uppercase font-bold tracking-wider mb-1 block">Type</label>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setNewTask({ ...newTask, type: "Assignment" })}
-                className={`flex-1 py-2 rounded-lg border font-medium transition-all ${
-                  newTask.type === "Assignment" ? `${theme.bg} ${theme.border} ${theme.text} border-opacity-50 ring-1 ring-white/10` : "bg-black/50 border-white/10 text-gray-400 hover:bg-white/5"
-                }`}
-              >
-                Assignment
-              </button>
-              <button
-                onClick={() => setNewTask({ ...newTask, type: "Exam" })}
-                className={`flex-1 py-2 rounded-lg border font-medium transition-all ${
-                  newTask.type === "Exam" ? `${theme.bg} ${theme.border} ${theme.text} border-opacity-50 ring-1 ring-white/10` : "bg-black/50 border-white/10 text-gray-400 hover:bg-white/5"
-                }`}
-              >
-                Exam
-              </button>
+            <div className="flex gap-2 text-sm">
+              {(["Assignment", "Exam", "TBA"] as TaskType[]).map((type) => (
+                <button
+                  key={type}
+                  onClick={() => setTaskData({ ...taskData, type })}
+                  className={`flex-1 py-2 rounded-lg border font-medium transition-all ${
+                    taskData.type === type ? `${theme.bg} ${theme.border} ${theme.text} border-opacity-50 ring-1 ring-white/10` : "bg-black/50 border-white/10 text-gray-400 hover:bg-white/5"
+                  }`}
+                >
+                  {type}
+                </button>
+              ))}
             </div>
           </div>
 
           <div className="pt-4 flex gap-3">
             <button onClick={onClose} className="flex-1 py-3 bg-white/5 hover:bg-white/10 text-gray-300 rounded-xl font-medium transition-colors">Cancel</button>
-            <button onClick={handleSave} className={`flex-1 py-3 text-white rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 ${theme.primary}`}>
-              <Save size={18} /> Save
+            <button 
+              onClick={handleSave} 
+              disabled={!taskData.title}
+              className={`flex-1 py-3 text-white rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 ${theme.primary} disabled:opacity-50 disabled:cursor-not-allowed`}
+            >
+              <Save size={18} /> {isEditing ? "Save Changes" : "Create Task"}
             </button>
           </div>
         </div>
@@ -316,8 +332,10 @@ const AssignmentsWidget = ({ accentColor = "blue" }: { accentColor?: AccentColor
   const [tasks, setTasks] = useState<Task[]>([]);
   const [user, setUser] = useState<User | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
-  const [isAdding, setIsAdding] = useState(false);
-  const [showAll, setShowAll] = useState(false); // Controls the full-list modal
+  
+  // Modal states
+  const [showAll, setShowAll] = useState(false);
+  const [modalState, setModalState] = useState<{isOpen: boolean, taskToEdit: Task | null}>({ isOpen: false, taskToEdit: null });
 
   const themeColors = {
     blue: { primary: "bg-blue-500", bg: "bg-blue-500/20", text: "text-blue-400", border: "focus:border-blue-500" },
@@ -345,11 +363,16 @@ const AssignmentsWidget = ({ accentColor = "blue" }: { accentColor?: AccentColor
         ...doc.data()
       })) as Task[];
       
-      // Sort so closest dates are first
-      fetched.sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
+      // Sort logic: Closest date first. Tasks with NO date go to the bottom.
+      fetched.sort((a, b) => {
+        if (!a.dueDate && !b.dueDate) return 0;
+        if (!a.dueDate) return 1;
+        if (!b.dueDate) return -1;
+        return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+      });
       
-      // Filter out tasks older than 1 day
-      const activeTasks = fetched.filter(t => calculateDaysRemaining(t.dueDate) >= -1);
+      // Filter out tasks older than 1 day (Keep tasks with no date)
+      const activeTasks = fetched.filter(t => !t.dueDate || calculateDaysRemaining(t.dueDate)! >= -1);
       setTasks(activeTasks);
     });
     return () => unsub();
@@ -362,9 +385,12 @@ const AssignmentsWidget = ({ accentColor = "blue" }: { accentColor?: AccentColor
     }
   };
 
-  // Determine which tasks to show in the widget (max 2)
-  const displayedTasks = tasks.slice(0, 2);
-  const hasMore = tasks.length > 2;
+  const openAddModal = () => setModalState({ isOpen: true, taskToEdit: null });
+  const openEditModal = (task: Task) => setModalState({ isOpen: true, taskToEdit: task });
+  const closeTaskModal = () => setModalState({ isOpen: false, taskToEdit: null });
+
+  const displayedTasks = tasks.slice(0, 3);
+  const hasMore = tasks.length > 3;
 
   return (
     <>
@@ -384,7 +410,7 @@ const AssignmentsWidget = ({ accentColor = "blue" }: { accentColor?: AccentColor
           
           {!isAuthLoading && user && (
             <button
-              onClick={() => setIsAdding(true)}
+              onClick={openAddModal}
               className="p-1.5 rounded-lg hover:bg-white/10 text-white/50 hover:text-white transition-colors"
               title="Add Deadline"
             >
@@ -398,7 +424,7 @@ const AssignmentsWidget = ({ accentColor = "blue" }: { accentColor?: AccentColor
           <AnimatePresence mode="popLayout">
             {displayedTasks.length > 0 ? (
               displayedTasks.map((task) => (
-                <TaskCard key={task.id} task={task} theme={theme} user={user} onDelete={handleDelete} />
+                <TaskCard key={task.id} task={task} theme={theme} user={user} onEdit={openEditModal} onDelete={handleDelete} />
               ))
             ) : (
               <div className="text-center py-6 text-gray-500 italic flex flex-col items-center gap-2">
@@ -423,12 +449,13 @@ const AssignmentsWidget = ({ accentColor = "blue" }: { accentColor?: AccentColor
 
       {/* --- MODALS --- */}
       <AnimatePresence>
-        {isAdding && (
-          <AddTaskModal
-            isOpen={isAdding}
-            onClose={() => setIsAdding(false)}
+        {modalState.isOpen && (
+          <TaskModal
+            isOpen={modalState.isOpen}
+            onClose={closeTaskModal}
             theme={theme}
             user={user}
+            existingTask={modalState.taskToEdit}
           />
         )}
         
@@ -439,6 +466,7 @@ const AssignmentsWidget = ({ accentColor = "blue" }: { accentColor?: AccentColor
             tasks={tasks}
             theme={theme}
             user={user}
+            onEdit={openEditModal}
             onDelete={handleDelete}
           />
         )}
