@@ -374,7 +374,7 @@ const Home = () => {
       <motion.div
         initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
-        className="relative z-10 w-full mx-auto px-4 flex flex-col items-center pt-10 pb-10 flex-1 overflow-y-auto xl:overflow-hidden scrollbar-thin"
+        className="relative z-10 w-full mx-auto px-4 flex flex-col items-center pt-10 pb-26 flex-1 overflow-y-auto xl:overflow-hidden scrollbar-thin"
       >
         <h1 className="mb-2 text-4xl md:text-6xl font-bold tracking-tight text-white drop-shadow-2xl text-center">
           {greet}
@@ -412,7 +412,7 @@ const Home = () => {
         </div>
 
         {/* Footer Buttons */}
-        <div className="mt-12 flex flex-wrap justify-center gap-4 pb-10">
+        <div className="absolute bottom-6 flex flex-wrap justify-center gap-4 ">
           <button
             onClick={() => setDrawer(true)}
             className="inline-flex items-center gap-2 px-4 py-2 text-sm text-gray-300 bg-black/30 hover:bg-black/50 hover:text-white rounded-full backdrop-blur-sm border border-white/5"

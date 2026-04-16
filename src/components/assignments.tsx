@@ -389,8 +389,8 @@ const AssignmentsWidget = ({ accentColor = "blue" }: { accentColor?: AccentColor
   const openEditModal = (task: Task) => setModalState({ isOpen: true, taskToEdit: task });
   const closeTaskModal = () => setModalState({ isOpen: false, taskToEdit: null });
 
-  const displayedTasks = tasks.slice(0, 3);
-  const hasMore = tasks.length > 3;
+  const displayedTasks = tasks.slice(0, 2);
+  const hasMore = tasks.length > 2;
 
   return (
     <>
@@ -419,7 +419,7 @@ const AssignmentsWidget = ({ accentColor = "blue" }: { accentColor?: AccentColor
           )}
         </div>
 
-        {/* List (Max 3 Items) */}
+        {/* List (Max 2 Items) */}
         <div className="space-y-3">
           <AnimatePresence mode="popLayout">
             {displayedTasks.length > 0 ? (
