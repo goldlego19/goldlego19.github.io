@@ -364,8 +364,9 @@ const Home = () => {
     }
   };
 
-  return (
-    <div className="relative flex flex-col items-center h-screen text-white overflow-hidden font-sans">
+ return (
+    // Changed to h-[100dvh] for better mobile browser support
+    <div className="relative flex flex-col items-center h-[100dvh] text-white overflow-hidden font-sans">
       <div
         className="absolute inset-0 z-0 bg-cover bg-center"
         style={{ backgroundImage: `url('${bg}')`, filter: "brightness(0.5)" }}
@@ -374,7 +375,8 @@ const Home = () => {
       <motion.div
         initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
-        className="relative z-10 w-full mx-auto px-4 flex flex-col items-center pt-10 pb-26 flex-1 overflow-y-auto xl:overflow-hidden scrollbar-thin"
+        // Removed the hard pb-26 here. Padding is now handled dynamically below.
+        className="relative z-10 w-full mx-auto px-4 flex flex-col items-center pt-10 flex-1 overflow-y-auto xl:overflow-hidden scrollbar-thin"
       >
         <h1 className="mb-2 text-4xl md:text-6xl font-bold tracking-tight text-white drop-shadow-2xl text-center">
           {greet}
@@ -385,7 +387,8 @@ const Home = () => {
         <GoogleSearch />
 
         {/* --- DYNAMIC LAYOUT FIX --- */}
-        <div className="mt-8 md:mt-12 w-full flex justify-center px-4">
+        {/* Added pb-8 for mobile padding, and xl:pb-32 so widgets don't hide under the pinned desktop bar */}
+        <div className="mt-8 md:mt-12 w-full flex justify-center px-4 pb-8 xl:pb-32">
           <div
             className="flex flex-col xl:flex-row items-center xl:items-start 
                        xl:overflow-x-auto xl:pb-6 scrollbar-thin 
@@ -412,10 +415,11 @@ const Home = () => {
         </div>
 
         {/* Footer Buttons */}
-        <div className="absolute bottom-6 flex flex-wrap justify-center gap-4 ">
+        {/* mt-auto pushes it to bottom on mobile. xl:absolute xl:bottom-6 pins it on desktop. */}
+        <div className="w-full z-50 flex flex-wrap justify-center gap-4 mt-auto pb-8 xl:mt-0 xl:pb-0 xl:absolute xl:bottom-6 pointer-events-none">
           <button
             onClick={() => setDrawer(true)}
-            className="inline-flex items-center gap-2 px-4 py-2 text-sm text-gray-300 bg-black/30 hover:bg-black/50 hover:text-white rounded-full backdrop-blur-sm border border-white/5"
+            className="pointer-events-auto inline-flex items-center gap-2 px-4 py-2 text-sm text-gray-300 bg-black/30 hover:bg-black/50 hover:text-white rounded-full backdrop-blur-sm border border-white/5"
           >
             <ImageIcon size={16} />
             <span>Customize</span>
@@ -423,7 +427,7 @@ const Home = () => {
 
           <button
             onClick={() => setWidgetModal(true)}
-            className="inline-flex items-center gap-2 px-4 py-2 text-sm text-gray-300 bg-black/30 hover:bg-black/50 hover:text-white rounded-full backdrop-blur-sm border border-white/5"
+            className="pointer-events-auto inline-flex items-center gap-2 px-4 py-2 text-sm text-gray-300 bg-black/30 hover:bg-black/50 hover:text-white rounded-full backdrop-blur-sm border border-white/5"
           >
             <Layout size={16} />
             <span>Widgets</span>
@@ -431,7 +435,7 @@ const Home = () => {
 
           <Link
             to="/about"
-            className="inline-flex items-center gap-2 px-4 py-2 text-sm text-gray-300 bg-black/30 hover:bg-black/50 hover:text-white rounded-full backdrop-blur-sm border border-white/5"
+            className="pointer-events-auto inline-flex items-center gap-2 px-4 py-2 text-sm text-gray-300 bg-black/30 hover:bg-black/50 hover:text-white rounded-full backdrop-blur-sm border border-white/5"
           >
             <Settings size={16} />
             <span>Settings</span>
@@ -439,7 +443,7 @@ const Home = () => {
           {user ? (
             <button
               onClick={() => signOut(auth)}
-              className="inline-flex items-center gap-2 px-4 py-2 text-sm text-red-300 bg-black/30 hover:bg-red-500/20 hover:text-red-200 rounded-full backdrop-blur-sm border border-white/5"
+              className="pointer-events-auto inline-flex items-center gap-2 px-4 py-2 text-sm text-red-300 bg-black/30 hover:bg-red-500/20 hover:text-red-200 rounded-full backdrop-blur-sm border border-white/5"
             >
               <LogOut size={16} />
               <span>Logout</span>
@@ -447,7 +451,7 @@ const Home = () => {
           ) : (
             <button
               onClick={() => setLogin(true)}
-              className="inline-flex items-center gap-2 px-4 py-2 text-sm text-gray-300 bg-black/30 hover:bg-black/50 hover:text-white rounded-full backdrop-blur-sm border border-white/5"
+              className="pointer-events-auto inline-flex items-center gap-2 px-4 py-2 text-sm text-gray-300 bg-black/30 hover:bg-black/50 hover:text-white rounded-full backdrop-blur-sm border border-white/5"
             >
               <LogIn size={16} />
               <span>Login</span>
