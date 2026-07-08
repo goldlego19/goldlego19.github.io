@@ -9,7 +9,7 @@ import {
   LogIn,
   LogOut,
   Loader2,
-  Layout,
+  Menu,
   ArrowUp,
   ArrowDown,
 } from "lucide-react";
@@ -27,6 +27,8 @@ import StatusWidget from "../components/status-widget";
 import BookmarksWidget from "../components/bookmarks";
 import MoneyWidget from "../components/money-widget";
 import AssignmentsWidget from "../components/assignments";
+import TimezonesWidget from "../components/timezones";
+import CalendarWidget from "../components/calendar-widget";
 
 // --- CONFIGURATION ---
 const bgModules = import.meta.glob(
@@ -55,7 +57,18 @@ const ALL_WIDGETS_CONFIG = [
     component: MoneyWidget,
     width: "xl:w-[400px]",
   },
-  // CHANGED: Increased width from 800px to 1000px
+  {
+    id: "timezones",
+    label: "World Times",
+    component: TimezonesWidget,
+    width: "xl:w-[400px]",
+  },
+  {
+    id: "calendar",
+    label: "Calendar",
+    component: CalendarWidget,
+    width: "xl:w-[600px]",
+  },
   {
     id: "timetable",
     label: "Timetable",
@@ -73,8 +86,19 @@ const ALL_WIDGETS_CONFIG = [
     label: "Assignments",
     component: AssignmentsWidget,
     width: "xl:w-[400px]",
-  }
+  },
 ];
+
+const getDisplayWidgetOrder = (
+  widgetOrder: string[],
+  visibleWidgets: Record<string, boolean>,
+) =>
+  [...widgetOrder].sort((a, b) => {
+    const aVisible = visibleWidgets[a] ? 0 : 1;
+    const bVisible = visibleWidgets[b] ? 0 : 1;
+    if (aVisible !== bVisible) return aVisible - bVisible;
+    return widgetOrder.indexOf(a) - widgetOrder.indexOf(b);
+  });
 
 // --- MODALS ---
 
@@ -198,100 +222,212 @@ const CustomizationDrawer = ({
   );
 };
 
-const WidgetModal = ({
-  onClose,
+const FloatingWidgetTabs = ({
+  isOpen,
+  onToggle,
   visibleWidgets,
   toggleWidget,
   widgetOrder,
   moveWidget,
+  activeWidget,
+  setActiveWidget,
+  accentColor,
+  user,
+  onCustomize,
+  onLogin,
+  onLogout,
 }: {
-  onClose: () => void;
+  isOpen: boolean;
+  onToggle: () => void;
   visibleWidgets: Record<string, boolean>;
   toggleWidget: (id: string) => void;
   widgetOrder: string[];
   moveWidget: (index: number, direction: "up" | "down") => void;
+  activeWidget: string;
+  setActiveWidget: (id: string) => void;
+  accentColor: AccentColor;
+  user: User | null;
+  onCustomize: () => void;
+  onLogin: () => void;
+  onLogout: () => void;
 }) => {
+  const [activeMenuTab, setActiveMenuTab] = useState<"widgets" | "actions">(
+    "widgets",
+  );
+  const config = ALL_WIDGETS_CONFIG.find((widget) => widget.id === activeWidget);
+  const WidgetComponent = config?.component;
+  const orderedWidgetTabs = getDisplayWidgetOrder(widgetOrder, visibleWidgets);
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div
-        onClick={onClose}
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-      />
-      <motion.div
-        initial={{ scale: 0.9, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.9, opacity: 0 }}
-        className="relative z-10 w-full max-w-sm bg-gray-900/90 border border-white/10 p-6 rounded-3xl shadow-2xl backdrop-blur-xl"
+    <div className="fixed left-4 top-4 z-50 flex flex-col items-start gap-3">
+      <button
+        onClick={onToggle}
+        className="h-11 w-11 inline-flex items-center justify-center rounded-full bg-black/35 hover:bg-black/55 text-gray-200 hover:text-white backdrop-blur-xl border border-white/10 shadow-2xl transition-colors"
+        title="Widgets"
       >
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-bold text-white flex items-center gap-2">
-            <Layout size={20} className="text-blue-400" /> Manage Widgets
-          </h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-white">
-            <X size={20} />
-          </button>
-        </div>
+        {isOpen ? <X size={18} /> : <Menu size={20} />}
+      </button>
+      <button
+        onClick={user ? onLogout : onLogin}
+        className={`h-11 w-11 inline-flex items-center justify-center rounded-full backdrop-blur-xl border shadow-2xl transition-colors ${
+          user
+            ? "border-red-500/10 bg-red-500/15 text-red-300 hover:bg-red-500/25 hover:text-red-200"
+            : "border-white/10 bg-black/35 text-gray-200 hover:bg-black/55 hover:text-white"
+        }`}
+        title={user ? "Logout" : "Login"}
+      >
+        {user ? <LogOut size={18} /> : <LogIn size={18} />}
+      </button>
 
-        <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2 scrollbar-thin">
-          <p className="text-xs text-gray-500 mb-2 uppercase tracking-wider font-semibold">
-            Visible & Order
-          </p>
-          {widgetOrder.map((id, index) => {
-            const config = ALL_WIDGETS_CONFIG.find((w) => w.id === id);
-            if (!config) return null;
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0, x: -12, y: -8 }}
+            animate={{ opacity: 1, x: 0, y: 0 }}
+            exit={{ opacity: 0, x: -12, y: -8 }}
+            className="w-[calc(100vw-2rem)] max-w-2xl max-h-[calc(100dvh-5.5rem)] overflow-hidden rounded-2xl border border-white/10 bg-gray-950/90 p-4 shadow-2xl backdrop-blur-xl"
+          >
+            <div className="flex items-center justify-between gap-3 border-b border-white/10 pb-3">
+              <div className="flex items-center gap-2 text-blue-300">
+                <Menu size={18} />
+                <span className="text-sm font-semibold tracking-wide">
+                  Menu
+                </span>
+              </div>
+              <span className="text-[10px] uppercase tracking-widest text-gray-500">
+                Dashboard
+              </span>
+            </div>
 
-            return (
-              <div
-                key={id}
-                className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all ${
-                  visibleWidgets[id]
-                    ? "bg-blue-500/10 border-blue-500/30"
-                    : "bg-white/5 border-white/5 opacity-60"
+            <div className="mt-3 grid grid-cols-2 rounded-xl border border-white/10 bg-black/20 p-1">
+              <button
+                onClick={() => setActiveMenuTab("widgets")}
+                className={`rounded-lg px-3 py-2 text-xs font-medium transition-colors ${
+                  activeMenuTab === "widgets"
+                    ? "bg-blue-500/20 text-white"
+                    : "text-gray-400 hover:text-white"
                 }`}
               >
-                <button
-                  onClick={() => toggleWidget(id)}
-                  className="flex-1 flex items-center gap-3 text-left"
-                >
-                  <div
-                    className={`w-4 h-4 rounded-full border flex items-center justify-center ${
-                      visibleWidgets[id]
-                        ? "bg-blue-400 border-blue-400"
-                        : "border-gray-500"
-                    }`}
-                  >
-                    {visibleWidgets[id] && (
-                      <div className="w-1.5 h-1.5 bg-black rounded-full" />
-                    )}
-                  </div>
-                  <span
-                    className={`font-medium ${visibleWidgets[id] ? "text-white" : "text-gray-400"}`}
-                  >
-                    {config.label}
-                  </span>
-                </button>
+                Widgets
+              </button>
+              <button
+                onClick={() => setActiveMenuTab("actions")}
+                className={`rounded-lg px-3 py-2 text-xs font-medium transition-colors ${
+                  activeMenuTab === "actions"
+                    ? "bg-blue-500/20 text-white"
+                    : "text-gray-400 hover:text-white"
+                }`}
+              >
+                Actions
+              </button>
+            </div>
 
-                <div className="flex flex-col gap-1">
-                  <button
-                    onClick={() => moveWidget(index, "up")}
-                    disabled={index === 0}
-                    className="p-1 rounded hover:bg-white/10 text-gray-400 hover:text-white disabled:opacity-20 disabled:hover:bg-transparent"
-                  >
-                    <ArrowUp size={14} />
-                  </button>
-                  <button
-                    onClick={() => moveWidget(index, "down")}
-                    disabled={index === widgetOrder.length - 1}
-                    className="p-1 rounded hover:bg-white/10 text-gray-400 hover:text-white disabled:opacity-20 disabled:hover:bg-transparent"
-                  >
-                    <ArrowDown size={14} />
-                  </button>
-                </div>
+            {activeMenuTab === "actions" ? (
+              <div className="mt-3 grid gap-2">
+                <button
+                  onClick={onCustomize}
+                  className="inline-flex items-center justify-start gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-gray-300 hover:bg-white/10 hover:text-white transition-colors"
+                >
+                  <ImageIcon size={16} />
+                  <span>Customize</span>
+                </button>
+                <Link
+                  to="/about"
+                  className="inline-flex items-center justify-start gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-gray-300 hover:bg-white/10 hover:text-white transition-colors"
+                >
+                  <Settings size={16} />
+                  <span>Settings</span>
+                </Link>
               </div>
-            );
-          })}
-        </div>
-      </motion.div>
+            ) : (
+              <>
+                <div className="mt-3 flex gap-2 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-white/10">
+                  {orderedWidgetTabs.map((id) => {
+                    const widget = ALL_WIDGETS_CONFIG.find(
+                      (item) => item.id === id,
+                    );
+                    if (!widget) return null;
+                    const isActive = activeWidget === id;
+                    const isVisible = visibleWidgets[id];
+
+                    return (
+                      <button
+                        key={id}
+                        onClick={() => setActiveWidget(id)}
+                        className={`flex-shrink-0 rounded-lg border px-3 py-2 text-xs font-medium transition-colors ${
+                          isActive
+                            ? "border-blue-500/50 bg-blue-500/20 text-white"
+                            : isVisible
+                              ? "border-white/10 bg-white/5 text-gray-300 hover:bg-white/10"
+                              : "border-white/5 bg-white/[0.03] text-gray-500 hover:text-gray-300"
+                        }`}
+                      >
+                        {widget.label}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {config && (
+                  <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/5 bg-white/5 p-2">
+                    <button
+                      onClick={() => toggleWidget(config.id)}
+                      className="inline-flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs text-gray-300 hover:bg-white/10 hover:text-white transition-colors"
+                    >
+                      <span
+                        className={`h-3.5 w-3.5 rounded-full border flex items-center justify-center ${
+                          visibleWidgets[config.id]
+                            ? "bg-blue-400 border-blue-400"
+                            : "border-gray-500"
+                        }`}
+                      >
+                        {visibleWidgets[config.id] && (
+                          <span className="h-1.5 w-1.5 rounded-full bg-black" />
+                        )}
+                      </span>
+                      {visibleWidgets[config.id]
+                        ? "Shown on dashboard"
+                        : "Hidden"}
+                    </button>
+
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() =>
+                          moveWidget(widgetOrder.indexOf(config.id), "up")
+                        }
+                        disabled={widgetOrder.indexOf(config.id) === 0}
+                        className="p-1.5 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white disabled:opacity-20 disabled:hover:bg-transparent"
+                        title="Move left"
+                      >
+                        <ArrowUp size={14} />
+                      </button>
+                      <button
+                        onClick={() =>
+                          moveWidget(widgetOrder.indexOf(config.id), "down")
+                        }
+                        disabled={
+                          widgetOrder.indexOf(config.id) ===
+                          widgetOrder.length - 1
+                        }
+                        className="p-1.5 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white disabled:opacity-20 disabled:hover:bg-transparent"
+                        title="Move right"
+                      >
+                        <ArrowDown size={14} />
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                <div className="mt-4 max-h-[calc(100dvh-17rem)] overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-white/10">
+                  {WidgetComponent && (
+                    <WidgetComponent accentColor={accentColor} />
+                  )}
+                </div>
+              </>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
@@ -333,7 +469,8 @@ const Home = () => {
 
   const [drawer, setDrawer] = useState(false);
   const [login, setLogin] = useState(false);
-  const [widgetModal, setWidgetModal] = useState(false);
+  const [widgetTabsOpen, setWidgetTabsOpen] = useState(false);
+  const [activeWidgetTab, setActiveWidgetTab] = useState(ALL_WIDGETS_CONFIG[0].id);
   const [user, setUser] = useState<User | null>(null);
   const [greet, setGreet] = useState("");
 
@@ -352,7 +489,7 @@ const Home = () => {
   };
 
   const moveWidget = (index: number, direction: "up" | "down") => {
-    const newOrder = [...widgetOrder];
+    const newOrder = getDisplayWidgetOrder(widgetOrder, visibleWidgets);
     const swapIndex = direction === "up" ? index - 1 : index + 1;
     if (swapIndex >= 0 && swapIndex < newOrder.length) {
       [newOrder[index], newOrder[swapIndex]] = [
@@ -363,6 +500,10 @@ const Home = () => {
       localStorage.setItem("widgetOrder", JSON.stringify(newOrder));
     }
   };
+  const displayedWidgetOrder = getDisplayWidgetOrder(
+    widgetOrder,
+    visibleWidgets,
+  );
 
  return (
     // Changed to h-[100dvh] for better mobile browser support
@@ -372,30 +513,46 @@ const Home = () => {
         style={{ backgroundImage: `url('${bg}')`, filter: "brightness(0.5)" }}
       />
 
+      <FloatingWidgetTabs
+        isOpen={widgetTabsOpen}
+        onToggle={() => setWidgetTabsOpen((current) => !current)}
+        visibleWidgets={visibleWidgets}
+        toggleWidget={toggleWidget}
+        widgetOrder={widgetOrder}
+        moveWidget={moveWidget}
+        activeWidget={activeWidgetTab}
+        setActiveWidget={setActiveWidgetTab}
+        accentColor={accent}
+        user={user}
+        onCustomize={() => setDrawer(true)}
+        onLogin={() => setLogin(true)}
+        onLogout={() => signOut(auth)}
+      />
+
       <motion.div
         initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
         // Removed the hard pb-26 here. Padding is now handled dynamically below.
-        className="relative z-10 w-full mx-auto px-4 flex flex-col items-center pt-10 flex-1 overflow-y-auto xl:overflow-hidden scrollbar-thin"
+        className="relative z-10 w-full mx-auto px-4 flex flex-col items-center pt-8 flex-1 overflow-hidden"
       >
-        <h1 className="mb-2 text-4xl md:text-6xl font-bold tracking-tight text-white drop-shadow-2xl text-center">
+        <h1 className="mb-2 text-3xl md:text-5xl font-bold tracking-tight text-white drop-shadow-2xl text-center">
           {greet}
         </h1>
-        <p className="mb-8 md:mb-12 text-lg md:text-xl text-gray-200 font-light tracking-wide text-center">
+        <p className="mb-6 md:mb-8 text-base md:text-lg text-gray-200 font-light tracking-wide text-center">
           Stay focused.
         </p>
         <GoogleSearch />
 
         {/* --- DYNAMIC LAYOUT FIX --- */}
         {/* Added pb-8 for mobile padding, and xl:pb-32 so widgets don't hide under the pinned desktop bar */}
-        <div className="mt-8 md:mt-12 w-full flex justify-center px-4 pb-8 xl:pb-32">
+        <div className="mt-6 md:mt-8 w-full flex min-h-0 flex-1 justify-center px-4 pb-4">
           <div
             className="flex flex-col xl:flex-row items-center xl:items-start 
                        xl:overflow-x-auto xl:pb-6 scrollbar-thin 
                        xl:snap-x 
                        w-full xl:w-fit xl:max-w-full gap-6"
           >
-            {widgetOrder.map((id) => {
+            {displayedWidgetOrder.map((id) => {
               const config = ALL_WIDGETS_CONFIG.find((w) => w.id === id);
               const isVisible = visibleWidgets[id];
               if (!config || !isVisible) return null;
@@ -414,50 +571,6 @@ const Home = () => {
           </div>
         </div>
 
-        {/* Footer Buttons */}
-        {/* mt-auto pushes it to bottom on mobile. xl:absolute xl:bottom-6 pins it on desktop. */}
-        <div className="w-full z-50 flex flex-wrap justify-center gap-4 mt-auto pb-8 xl:mt-0 xl:pb-0 xl:absolute xl:bottom-6 pointer-events-none">
-          <button
-            onClick={() => setDrawer(true)}
-            className="pointer-events-auto inline-flex items-center gap-2 px-4 py-2 text-sm text-gray-300 bg-black/30 hover:bg-black/50 hover:text-white rounded-full backdrop-blur-sm border border-white/5"
-          >
-            <ImageIcon size={16} />
-            <span>Customize</span>
-          </button>
-
-          <button
-            onClick={() => setWidgetModal(true)}
-            className="pointer-events-auto inline-flex items-center gap-2 px-4 py-2 text-sm text-gray-300 bg-black/30 hover:bg-black/50 hover:text-white rounded-full backdrop-blur-sm border border-white/5"
-          >
-            <Layout size={16} />
-            <span>Widgets</span>
-          </button>
-
-          <Link
-            to="/about"
-            className="pointer-events-auto inline-flex items-center gap-2 px-4 py-2 text-sm text-gray-300 bg-black/30 hover:bg-black/50 hover:text-white rounded-full backdrop-blur-sm border border-white/5"
-          >
-            <Settings size={16} />
-            <span>Settings</span>
-          </Link>
-          {user ? (
-            <button
-              onClick={() => signOut(auth)}
-              className="pointer-events-auto inline-flex items-center gap-2 px-4 py-2 text-sm text-red-300 bg-black/30 hover:bg-red-500/20 hover:text-red-200 rounded-full backdrop-blur-sm border border-white/5"
-            >
-              <LogOut size={16} />
-              <span>Logout</span>
-            </button>
-          ) : (
-            <button
-              onClick={() => setLogin(true)}
-              className="pointer-events-auto inline-flex items-center gap-2 px-4 py-2 text-sm text-gray-300 bg-black/30 hover:bg-black/50 hover:text-white rounded-full backdrop-blur-sm border border-white/5"
-            >
-              <LogIn size={16} />
-              <span>Login</span>
-            </button>
-          )}
-        </div>
       </motion.div>
 
       <AnimatePresence>
@@ -479,17 +592,6 @@ const Home = () => {
       </AnimatePresence>
       <AnimatePresence>
         {login && <LoginModal onClose={() => setLogin(false)} />}
-      </AnimatePresence>
-      <AnimatePresence>
-        {widgetModal && (
-          <WidgetModal
-            onClose={() => setWidgetModal(false)}
-            visibleWidgets={visibleWidgets}
-            toggleWidget={toggleWidget}
-            widgetOrder={widgetOrder}
-            moveWidget={moveWidget}
-          />
-        )}
       </AnimatePresence>
     </div>
   );

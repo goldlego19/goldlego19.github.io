@@ -167,6 +167,7 @@ const StipendModal = ({
 const MoneyWidget = ({ accentColor }: { accentColor: AccentColor }) => {
   const [paycheck, setPaycheck] = useState({ days: 0, progress: 0, date: "" });
   const [stipend, setStipend] = useState({ days: 0, progress: 0, date: "" });
+  const [hasUpcomingStipend, setHasUpcomingStipend] = useState(true);
   const [showModal, setShowModal] = useState(false);
 
   // Theme Helpers
@@ -253,6 +254,7 @@ const MoneyWidget = ({ accentColor }: { accentColor: AccentColor }) => {
       .find((d) => d.getTime() < today.getTime());
 
     if (nextStipend) {
+      setHasUpcomingStipend(true);
       const stipDiff = nextStipend.getTime() - today.getTime();
       const stipDays = Math.ceil(stipDiff / (1000 * 60 * 60 * 24));
 
@@ -278,6 +280,7 @@ const MoneyWidget = ({ accentColor }: { accentColor: AccentColor }) => {
       });
     } else {
       setStipend({ days: 0, progress: 1, date: "Done" });
+      setHasUpcomingStipend(false);
     }
   }, []);
 
@@ -396,7 +399,9 @@ const MoneyWidget = ({ accentColor }: { accentColor: AccentColor }) => {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="w-full h-full min-h-[150px] bg-black/30 backdrop-blur-xl border border-white/10 rounded-2xl p-6 shadow-2xl flex flex-col justify-between"
+        className={`w-full h-full min-h-[150px] bg-black/30 backdrop-blur-xl border border-white/10 rounded-2xl p-6 shadow-2xl flex flex-col justify-between transition-[max-width] duration-300 ${
+          hasUpcomingStipend ? "" : "max-w-[240px] mx-auto"
+        }`}
       >
         <div className="flex items-center gap-2 mb-4 border-b border-white/10 pb-4">
           <div className={`p-1.5 rounded-md ${getColor("bg")}`}>
@@ -409,7 +414,11 @@ const MoneyWidget = ({ accentColor }: { accentColor: AccentColor }) => {
           </span>
         </div>
 
-        <div className="flex items-start justify-around w-full pb-2">
+        <div
+          className={`flex items-start w-full pb-2 ${
+            hasUpcomingStipend ? "justify-around" : "justify-center"
+          }`}
+        >
           <MiniCircle
             progress={paycheck.progress}
             days={paycheck.days}
@@ -417,15 +426,19 @@ const MoneyWidget = ({ accentColor }: { accentColor: AccentColor }) => {
             date={paycheck.date}
             icon={Wallet}
           />
-          <div className="h-20 w-px bg-white/10 self-center" />
-          <MiniCircle
-            progress={stipend.progress}
-            days={stipend.days}
-            label="Stipend"
-            date={stipend.date}
-            icon={Calendar}
-            onClick={() => setShowModal(true)}
-          />
+          {hasUpcomingStipend && (
+            <>
+              <div className="h-20 w-px bg-white/10 self-center" />
+              <MiniCircle
+                progress={stipend.progress}
+                days={stipend.days}
+                label="Stipend"
+                date={stipend.date}
+                icon={Calendar}
+                onClick={() => setShowModal(true)}
+              />
+            </>
+          )}
         </div>
       </motion.div>
 
